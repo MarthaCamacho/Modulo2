@@ -39,12 +39,13 @@ public class QuoteLineItemTriggerHandler implements ITriggerHandler{
         try {
             for(QuoteLineItem oQuote : newQuoteLineItem){
                 Product2 objProduct = [ SELECT ProductCode FROM Product2 WHERE id =: oQuote.Product2Id];
-                Inventario__c objInventory = [ SELECT Name, CodigoProd__c, Cantidad_apart__c, Cantidad_dis__c FROM Inventario__c WHERE CodigoProd__c =: objProduct.ProductCode];
+                Inventario__c objInventory = [ SELECT Name, CodigoProd__c, Cantidad_dis__c, Cantidad_apart__c FROM Inventario__c WHERE CodigoProd__c =: objProduct.ProductCode];
                 //Validar Disponibilidad
                 nodisp = objInventory.Cantidad_apart__c + oQuote.Quantity;
+                disp = objInventory.Cantidad_dis__c;
 
-                if(objInventory.Cantidad_dis__c >= disp){
-                    disp = objInventory.Cantidad_dis__c - nodisp;
+                if(disp >= oQuote.Quantity){
+                    disp = objInventory.Cantidad_dis__c - oQuote.Quantity;
                     objInventory.Cantidad_dis__c = disp;
                     objInventory.Cantidad_apart__c = nodisp;
                     update objInventory;
@@ -66,14 +67,14 @@ public class QuoteLineItemTriggerHandler implements ITriggerHandler{
             for (QuoteLineItem oQuote : newQuoteLineItem) {
                 //Obtener nombre de Presupuesto
                 Quote objQuote = [ SELECT Name FROM quote WHERE Id = :oQuote.QuoteId ];
-                QuoteLineItem objQuoteLine = [ SELECT Product2Id, Quantity  FROM QuoteLineItem WHERE QuoteId = :oQuote.QuoteId ];
+                QuoteLineItem objQuoteLine = [ SELECT Product2Id, Quantity  FROM QuoteLineItem WHERE QuoteId = :oQuote.QuoteId AND LineNumber = :oQuote.LineNumber];
                 Product2 vProdCode = [ SELECT ProductCode FROM Product2 WHERE id = :objQuoteLine.Product2Id ];
-                Inventario__c objInventory = [ SELECT name, CodigoProd__c, Cantidad_apart__c, Cantidad_dis__c 
+                Inventario__c objInventory = [ SELECT name, CodigoProd__c, Cantidad_dis__c, Cantidad_apart__c
                                               FROM Inventario__c WHERE CodigoProd__c = :vProdCode.ProductCode ];
                 // Condicional para manejar el tema de disponibilidad.
                 if( oQuote.Quantity > objQuoteLine.Quantity){
                     nodisp = ( oQuote.Quantity - objQuoteLine.Quantity ) + objInventory.Cantidad_apart__c;
-                    disp = objInventory.Cantidad_dis__c - nodisp;
+                    disp = objInventory.Cantidad_dis__c - ( oQuote.Quantity - objQuoteLine.Quantity );
                 }else if (oQuote.Quantity < objQuoteLine.Quantity){
                     nodisp = objInventory.Cantidad_apart__c - (objQuoteLine.Quantity - oQuote.Quantity);
                     disp = objInventory.Cantidad_dis__c + (objQuoteLine.Quantity - oQuote.Quantity);
@@ -119,6 +120,7 @@ public class QuoteLineItemTriggerHandler implements ITriggerHandler{
         handleTypeUpdate(listQuote);
     }    
     public void afterUpdate(List<sObject> newList, Map<Id, sObject> newMap,  List<sObject> oldList, Map<Id, sObject> oldMap){}    
+    
     public void beforeDelete(List<sObject> oldList , Map<Id, sObject> oldMap){
         List<QuoteLineItem> lstQuote = new List<QuoteLineItem>();
         for(sobject obj : oldList){
